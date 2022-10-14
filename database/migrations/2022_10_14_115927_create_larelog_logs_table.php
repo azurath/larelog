@@ -5,7 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
+class CreateLarelogLogsTable extends Migration
 {
     /**
      * Run the migrations.
@@ -27,9 +27,9 @@ return new class extends Migration
             $table->mediumText('request')->nullable();
             $table->text('response_headers')->nullable();
             $table->mediumText('response')->nullable();
-            $table->float('execution_time', 8, 8);
-            $table->index([ 'created_at', 'type', DB::raw('url(100)') ]);
-            $table->index([ 'created_at', DB::raw('url(100)') ]);
+            $table->float('execution_time', 16, 8);
+            $table->index([ 'created_at', 'type', DB::raw('url(20)') ]);
+            $table->index([ 'created_at', DB::raw('url(20)') ]);
         });
     }
 
@@ -42,4 +42,4 @@ return new class extends Migration
     {
         Schema::drop('larelog_logs');
     }
-};
+}
