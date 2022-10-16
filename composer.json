@@ -1,6 +1,16 @@
 {
     "name": "azurath/larelog",
     "description": "Laravel Request Logger",
+    "keywords": [
+        "laravel",
+        "request",
+        "logger",
+        "log",
+        "database",
+        "file",
+        "http",
+        "http requests logger"
+    ],
     "type": "package",
     "require": {
         "ext-json": "*",

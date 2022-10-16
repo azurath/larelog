@@ -1,4 +1,5 @@
 Laravel Request Logger.
+Logs all HTTP requests performed to your Laravel application, as well as GuzzleHTTP requests.
 
 TL;DR:
 1. Run `composer require azurath/larelog`
@@ -9,8 +10,8 @@ TL;DR:
 
 If you're using GuzzleHttp and want to log requests perfomed via it:
 ```
-    $stack = (new Larelog())->getGuzzleLoggerStack();
-    $client = new Client([
+    $stack = (new \Azurath\Larelog\Larelog())->getGuzzleLoggerStack();
+    $client = new \GuzzleHttp\Client([
         'handler' => $stack,
     ]);
     //your code goes here
@@ -18,3 +19,6 @@ If you're using GuzzleHttp and want to log requests perfomed via it:
 
 Settings stored in `config/larelog.php`.
 
+Add `$schedule->job(new \Azurath\Larelog\LarelogRotateLogs())->hourly();` to `app/Console/Kernel.php` to enable log rotation.
+
+You can get log item as text by calling `(new \Azurath\Larelog\Larelog())->formatLogAsText();`

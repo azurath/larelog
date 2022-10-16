@@ -42,9 +42,19 @@ return [
         '\/api\/*',
     ],
 
-    /* Settings below currently not supported */
+    /* Database Log rotation settings
+     * Log rotation deletes oldest 50% of existing logs.
+     */
+
+    /* Rotate logs? */
     'database_log_rotation' => true,
-    'min_disk_space_percent_to_clean' => 20,
+
+    /* Minimum disk space percent to perform cleanup */
+    'min_free_disk_space_percent_to_clean' => 20,
+
+    /* Minimum database log entries count to perform cleanup by one of conditions */
     'min_database_log_entries_to_clean' => 2 * 10 * 1000,
+
+    /* Maximum database log entries before cleanup by entries count condition */
     'max_database_log_entries' => 1000 * 1000,
 ];

@@ -94,7 +94,7 @@ class Larelog
      * @param array $data
      * @return string
      */
-    protected static function formatLogAsText(array $data): string
+    public static function formatLogAsText(array $data): string
     {
         $formattedRequestHeaders = self::formatLogHeaders($data['request_headers']);
         $formattedResponseHeaders = self::formatLogHeaders($data['response_headers']);
