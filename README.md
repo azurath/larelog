@@ -21,4 +21,5 @@ Settings stored in `config/larelog.php`.
 
 Add `$schedule->job(new \Azurath\Larelog\LarelogRotateLogs())->hourly();` to `app/Console/Kernel.php` to enable log rotation.
 
-You can get log item as text by calling `(new \Azurath\Larelog\Larelog())->formatLogAsText();`
+You can get text representation of log item stored in database:
+`$logItem = \Azurath\Larelog\Models\LarelogLog::first()->formatAsText()`

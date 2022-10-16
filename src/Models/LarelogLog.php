@@ -2,8 +2,10 @@
 
 namespace Azurath\Larelog\Models;
 
+use Azurath\Larelog\Larelog;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\View;
 
 /**
  * App\Order
@@ -43,4 +45,23 @@ class LarelogLog extends Model
         'response',
         'execution_time',
     ];
+
+    public function toString(): ?string
+    {
+        return $this->formatAsText();
+    }
+
+    public function formatAsText(): ?string
+    {
+        $formattedRequestHeaders = Larelog::formatLogHeaders($this->request_headers);
+        $formattedResponseHeaders = Larelog::formatLogHeaders($this->response_headers);
+        $data = array_merge($this->toArray(),
+            [
+                'formatted_request_headers' => $formattedRequestHeaders,
+                'formatted_response_headers' => $formattedResponseHeaders,
+            ]
+        );
+
+        return View::make('larelog::log.log', $data)->render();
+    }
 }

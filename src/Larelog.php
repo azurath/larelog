@@ -39,6 +39,7 @@ class Larelog
      * @param string $response
      * @param float|null $executionTime
      * @return void
+     * @throws Exception
      */
     public static function log(
         ?string $direction,
@@ -67,14 +68,18 @@ class Larelog
             'response' => $response,
             'execution_time' => $executionTime,
         ];
+        $logItem = self::createLogItem($data);
+
         $outputTo = config('larelog.output');
         switch ($outputTo) {
             case self::OUTPUT_DATABASE:
-                self::createDbRecord($data);
+                $logItem->save();
                 break;
             case self::OUTPUT_LOG:
-                logger(self::formatLogAsText($data));
+                logger($logItem->formatAsText());
                 break;
+            default:
+                throw new Exception('Unknown log output method: ' . $outputTo);
         }
     }
 
@@ -82,37 +87,18 @@ class Larelog
      * @param array $data
      * @return LarelogLog
      */
-    protected static function createDbRecord(array $data): LarelogLog
+    protected static function createLogItem(array $data): LarelogLog
     {
         $logItem = new LarelogLog();
         $logItem->fill($data);
-        $logItem->save();
         return $logItem;
-    }
-
-    /**
-     * @param array $data
-     * @return string
-     */
-    public static function formatLogAsText(array $data): string
-    {
-        $formattedRequestHeaders = self::formatLogHeaders($data['request_headers']);
-        $formattedResponseHeaders = self::formatLogHeaders($data['response_headers']);
-        $data = array_merge(
-            $data,
-            [
-                'formatted_request_headers' => $formattedRequestHeaders,
-                'formatted_response_headers' => $formattedResponseHeaders,
-            ]
-        );
-        return View::make('larelog::log.log', $data)->render();
     }
 
     /**
      * @param string $data
      * @return string
      */
-    protected static function formatLogHeaders(string $data): string
+    public static function formatLogHeaders(string $data): string
     {
         $valuesOnly = false;
         if (!$data) {
@@ -130,8 +116,8 @@ class Larelog
 
         foreach ($decodedData as $key => $value) {
             if (is_array($value)) {
-                foreach ($value as $subvalue) {
-                    $resultData[] = "\t" . $key . ': ' . $subvalue;
+                foreach ($value as $subValue) {
+                    $resultData[] = "\t" . $key . ': ' . $subValue;
                 }
             } else {
                 $resultData[] = "\t" . ($valuesOnly ? $value : $key . ': ' . $value);
