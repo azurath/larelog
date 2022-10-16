@@ -7,9 +7,24 @@ return [
     'mode' => 'blacklist',
 
     /*
-     * Output logs to 'database', 'log' or 'callback'
-    */
+     * Output logs to 'database' (table `larelog_items`), 'log' (you can create new channel and point log to it below) or 'callback'
+     */
     'output' => 'database',
+
+    /*
+     * Log channel name of 'output' set to 'log'.
+     * Don't forget to create channel with that name in 'config/logging.php'.
+     */
+    'log_channel_name' => 'single',
+
+    /*
+     * Callback function name. Array with class name as first element and method name as second.
+     * This method will receive LarelogItem model instance as a parameter if new log event occurs.
+     * Works only if 'output' set to 'callback'.
+     * Example value:
+     * [\App\Http\Controllers\TestController::class, 'testCallback']
+     */
+    'output_callback' => null,
 
     /*
      * What request directions we should log: 'incoming', 'outgoing'
@@ -33,18 +48,26 @@ return [
     /*
      * Blacklist (works only if mode set to 'blacklist')
      * Regular expressions are supported. Do not forget to escape characters like '/', '_', '?' etc.
+     * Example: '\/api\/some\_route\/.*?some\_slug'.
      */
     'blacklist' => [
-        '\/api\/some\_route\/.*?some\_slug',
+        //
     ],
 
     /*
      * Whitelist (works only if mode set to 'whitelist'
      * Regular expressions are supported. Do not forget to escape characters like '/', '_', '?' etc.
+     * Example: '\/api\/*'.
      */
     'whitelist' => [
-        '\/api\/*',
+        //
     ],
+
+    /*
+     * Max text length.
+     * Texts (e.g. requests, responces etc) longer than this value will be truncated.
+     */
+    'max_field_text_length' => 12 * 1024 * 1024,
 
     /*
      * Database Log rotation settings

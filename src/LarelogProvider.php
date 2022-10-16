@@ -2,11 +2,14 @@
 
 namespace Azurath\Larelog;
 
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class LarelogProvider extends ServiceProvider
 {
+    /**
+     */
     public function boot(): void
     {
         if ($this->app->runningInConsole()) {

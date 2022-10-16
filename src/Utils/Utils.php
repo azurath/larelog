@@ -2,10 +2,13 @@
 
 namespace Azurath\Larelog\Utils;
 
+use Illuminate\Support\Facades\Log;
+
 /**
  *
  */
-class Utils {
+class Utils
+{
 
     protected $startTime;
 
@@ -18,7 +21,8 @@ class Utils {
         return $this->startTime;
     }
 
-    public function getStartTime(): ?float {
+    public function getStartTime(): ?float
+    {
         return $this->startTime;
     }
 
@@ -38,9 +42,9 @@ class Utils {
     public static function formatBytes(?int $size, int $precision = 2): ?string
     {
         if ($size > 0) {
-            $size = (int) $size;
+            $size = (int)$size;
             $base = log($size) / log(1024);
-            $suffixes = [ ' bytes', ' KB', ' MB', ' GB', ' TB' ];
+            $suffixes = [' bytes', ' KB', ' MB', ' GB', ' TB'];
 
             return round(pow(1024, $base - floor($base)), $precision) . $suffixes[floor($base)];
         } else {
@@ -50,11 +54,13 @@ class Utils {
 
     /**
      * @param $data
+     * @param string|null $channel
      * @return void
      */
-    public static function logData($data): void
+    public static function logData($data, ?string $channel = null): void
     {
-        logger($data);
+        $logChannel = $channel ?: config('logging.default');
+        Log::channel($logChannel)->info($data);
     }
 
 }

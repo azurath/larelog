@@ -2,7 +2,7 @@
 
 namespace Azurath\Larelog;
 
-use Azurath\Larelog\Models\LarelogLog;
+use Azurath\Larelog\Models\LarelogItem;
 use Azurath\Larelog\Utils\Utils;
 use Exception;
 use Illuminate\Support\Facades\View;
@@ -22,19 +22,19 @@ class LarelogRotateLogs
      */
     public function cleanLogs()
     {
-        $count = LarelogLog::query()->count();
+        $count = LarelogItem::query()->count();
         if ($this->shouldClean($count)) {
             $this->fillStatsBefore();
             $countToDelete = $this->getCountToDelete($count);
-            $deleteToRecord = LarelogLog::query()
+            $deleteToRecord = LarelogItem::query()
                 ->orderBy('id', 'asc')
                 ->skip($countToDelete)
                 ->take(1)
                 ->first();
-            LarelogLog::where('id', '<', $deleteToRecord->id)
+            LarelogItem::where('id', '<', $deleteToRecord->id)
                 ->delete();
             $this->fillStatsAfter($count);
-            Utils::logData($this->logCleanupStats($countToDelete));
+            Larelog::printToLog($this->logCleanupStats($countToDelete));
         }
     }
 

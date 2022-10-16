@@ -2,7 +2,7 @@
 
 namespace Azurath\Larelog;
 
-use Azurath\Larelog\Models\LarelogLog;
+use Azurath\Larelog\Models\LarelogItem;
 use Azurath\Larelog\Utils\Utils;
 use Exception;
 use GuzzleHttp\HandlerStack;
@@ -11,11 +11,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
+use Symfony\Component\HttpFoundation\Response;
 
 class Larelog
 {
-    const MAX_TEXT_LENGTH = 12 * 1024 * 1024;
-
     const LOG_TYPE_GUZZLE_HTTP = 'guzzlehttp';
     const LOG_TYPE_UNKNOWN = 'unknown';
 
@@ -25,9 +24,19 @@ class Larelog
     const MODE_BLACKLIST = 'blacklist';
     const MODE_WHITELIST = 'whitelist';
 
-    const OUTPUT_DATABASE = 'database';
-    const OUTPUT_LOG = 'log';
-    const OUTPUT_CALLBACK
+    const OUTPUT_TO_DATABASE = 'database';
+    const OUTPUT_TO_LOG = 'log';
+    const OUTPUT_TO_CALLBACK = 'callback';
+
+    protected $utils;
+
+    /**
+     *
+     */
+    function __construct()
+    {
+        $this->utils = new Utils();
+    }
 
     /**
      * @param float|null $startTime
@@ -46,7 +55,7 @@ class Larelog
      * @return void
      * @throws Exception
      */
-    public static function log(
+    public function log(
         ?float          $startTime,
         ?string         $direction,
         ?string         $type,
@@ -82,11 +91,14 @@ class Larelog
 
         $outputTo = config('larelog.output');
         switch ($outputTo) {
-            case self::OUTPUT_DATABASE:
+            case self::OUTPUT_TO_DATABASE:
                 $logItem->save();
                 break;
-            case self::OUTPUT_LOG:
-                Utils::logData($logItem->formatAsText());
+            case self::OUTPUT_TO_LOG:
+                self::printToLog($logItem->formatAsText());
+                break;
+            case self::OUTPUT_TO_CALLBACK:
+                $this->outputToCallback($logItem);
                 break;
             default:
                 throw new Exception('Unknown log output method: ' . $outputTo);
@@ -94,12 +106,21 @@ class Larelog
     }
 
     /**
-     * @param array $data
-     * @return LarelogLog
+     * @param string $text
+     * @return void
      */
-    protected static function createLogItem(array $data): LarelogLog
+    public static function printToLog(string $text): void
     {
-        $logItem = new LarelogLog();
+        Utils::logData($text, config('larelog.log_channel_name'));
+    }
+
+    /**
+     * @param array $data
+     * @return LarelogItem
+     */
+    protected static function createLogItem(array $data): LarelogItem
+    {
+        $logItem = new LarelogItem();
         $logItem->fill($data);
         return $logItem;
     }
@@ -136,6 +157,10 @@ class Larelog
         return implode(PHP_EOL, $resultData);
     }
 
+    /**
+     * @param Request $request
+     * @return string|null
+     */
     public function getIncomingRequestType(Request $request): ?string
     {
         $route = $request->route();
@@ -143,6 +168,45 @@ class Larelog
         return !empty($requestRouteMiddlewares) ? $requestRouteMiddlewares[0] : self::LOG_TYPE_UNKNOWN;
     }
 
+    /**
+     * @param Request $request
+     * @param Response $response
+     * @return Response
+     * @throws Exception
+     */
+    public function logIncomingRequest(Request $request, Response $response): Response
+    {
+        $utils = new Utils();
+        $utils->start();
+        $executionTime = $utils->end();
+        $requestUri = $request->getUri();
+        $direction = Larelog::REQUEST_DIRECTION_INCOMING;
+        $type = $this->getIncomingRequestType($request);
+        $user = Auth::user();
+        if ($this->shouldLog($requestUri, $direction, $type)) {
+            $this->log(
+                $utils->getStartTime(),
+                $direction,
+                $type,
+                $requestUri,
+                $response->getStatusCode(),
+                $request->getMethod(),
+                $request->getProtocolVersion(),
+                json_encode($request->headers->all()),
+                $request->getContent(),
+                json_encode($response->headers->all()),
+                $response->getContent(),
+                $executionTime,
+                $user
+            );
+        }
+
+        return $response;
+    }
+
+    /**
+     * @return HandlerStack
+     */
     public function getGuzzleLoggerStack(): HandlerStack
     {
         $stack = HandlerStack::create();
@@ -182,9 +246,13 @@ class Larelog
         return $stack;
     }
 
+    /**
+     * @param string $text
+     * @return string
+     */
     protected function truncateText(string $text): string
     {
-        return mb_substr($text, 0, self::MAX_TEXT_LENGTH);
+        return mb_substr($text, 0, config('larelog.max_field_text_length'));
     }
 
     /**
@@ -210,28 +278,61 @@ class Larelog
             && $shouldLogByList;
     }
 
+    /**
+     * @param string|null $direction
+     * @return bool
+     */
     protected function shouldLogByDirection(?string $direction): bool
     {
         return in_array($direction, config('larelog.directions'));
     }
 
+    /**
+     * @param string|null $type
+     * @return bool
+     */
     protected function shouldLogByType(?string $type): bool
     {
         return (empty($type) || in_array($type, config('larelog.types')));
     }
 
+
     /**
+     * @param string $uri
+     * @param array $list
+     * @return bool
      * @throws Exception
      */
     protected function isUriInList(string $uri, array $list): bool
     {
-        $subpattern = implode('|', $list);
-        $pattern = '/(' . $subpattern . ')/';
-        try {
-            $result = preg_match($pattern, $uri);
-        } catch (Exception $e) {
-            throw new Exception('Regexp error: ' . $e->getMessage() . '. Regex: ' . $pattern);
+        if (!empty($list)) {
+            $subpattern = implode('|', $list);
+            $pattern = '/(' . $subpattern . ')/';
+            try {
+                $result = preg_match($pattern, $uri);
+            } catch (Exception $e) {
+                throw new Exception('Regexp error: ' . $e->getMessage() . '. Regex: ' . $pattern);
+            }
+            return $result !== 0;
+        } else {
+            return false;
         }
-        return $result !== 0;
+    }
+
+
+    /**
+     * @param LarelogItem $logItem
+     * @return void
+     * @throws Exception
+     */
+    protected function outputToCallback(LarelogItem $logItem): void
+    {
+        $callback = config('larelog.output_callback');
+        if (!empty($callback) && sizeof($callback) === 2 && method_exists($callback[0], $callback[1])) {
+            $callback($logItem);
+        } else {
+            $callbackAsText = !empty($callback) ? implode(', ', $callback) : json_encode($callback);
+            throw new Exception('Output callback ain\'t set or function doesn\'t exists. Trying to call: [' . $callbackAsText . ']');
+        }
     }
 }

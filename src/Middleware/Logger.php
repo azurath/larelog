@@ -15,12 +15,10 @@ use Illuminate\Support\Facades\Auth;
  */
 class Logger
 {
-    protected $utils;
     protected $larelog;
 
     public function __construct()
     {
-        $this->utils = new Utils();
         $this->larelog = new Larelog();
     }
 
@@ -29,37 +27,13 @@ class Logger
      *
      * @param Request $request
      * @param Closure $next
-     * @return mixed
+     * @return void
      * @throws Exception
      */
     public function handle(Request $request, Closure $next)
     {
-        $utils = new Utils();
-        $utils->start();
         $response = $next($request);
-        $executionTime = $utils->end();
-        $requestUri = $request->getUri();
-        $direction = Larelog::REQUEST_DIRECTION_INCOMING;
-        $type = $this->larelog->getIncomingRequestType($request);
-        $user = Auth::user();
-        if ($this->larelog->shouldLog($requestUri, $direction, $type)) {
-            $this->larelog->log(
-                $utils->getStartTime(),
-                $direction,
-                $type,
-                $requestUri,
-                $response->status(),
-                $request->getMethod(),
-                $request->getProtocolVersion(),
-                json_encode($request->headers->all()),
-                $request->getContent(),
-                json_encode($response->headers->all()),
-                $response->getContent(),
-                $executionTime,
-                $user
-            );
-        }
-
+        $this->larelog->logIncomingRequest($request, $response);
         return $response;
     }
 

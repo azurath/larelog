@@ -31,7 +31,7 @@ use Illuminate\Support\Facades\View;
  * @property-read ?string $formatted_response_headers
  * @property-read string $formatted_execution_time
  */
-class LarelogLog extends Model
+class LarelogItem extends Model
 {
     const UPDATED_AT = null;
 
