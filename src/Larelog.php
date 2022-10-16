@@ -16,19 +16,6 @@ use Symfony\Component\HttpFoundation\Response;
 
 class Larelog
 {
-    const LOG_TYPE_GUZZLE_HTTP = 'guzzlehttp';
-    const LOG_TYPE_UNKNOWN = 'unknown';
-
-    const REQUEST_DIRECTION_INCOMING = 'incoming';
-    const REQUEST_DIRECTION_OUTGOING = 'outgoing';
-
-    const MODE_BLACKLIST = 'blacklist';
-    const MODE_WHITELIST = 'whitelist';
-
-    const OUTPUT_TO_DATABASE = 'database';
-    const OUTPUT_TO_LOG = 'log';
-    const OUTPUT_TO_CALLBACK = 'callback';
-
     protected $utils;
 
     /**
@@ -75,7 +62,7 @@ class Larelog
         $data = [
             'started_at' => $startTime,
             'direction' => $direction,
-            'type' => $type ?? self::LOG_TYPE_UNKNOWN,
+            'type' => $type ?? Constants::LOG_TYPE_UNKNOWN,
             'url' => $url,
             'http_code' => $httpCode,
             'http_method' => $httpMethod,
@@ -93,13 +80,13 @@ class Larelog
 
         $outputTo = config('larelog.output');
         switch ($outputTo) {
-            case self::OUTPUT_TO_DATABASE:
+            case Constants::OUTPUT_TO_DATABASE:
                 $logItem->save();
                 break;
-            case self::OUTPUT_TO_LOG:
+            case Constants::OUTPUT_TO_LOG:
                 self::printToLog($logItem->formatAsText());
                 break;
-            case self::OUTPUT_TO_CALLBACK:
+            case Constants::OUTPUT_TO_CALLBACK:
                 $this->outputToCallback($logItem);
                 break;
             default:
@@ -167,7 +154,7 @@ class Larelog
     {
         $route = $request->route();
         $requestRouteMiddlewares = $route ? $route->getAction('middleware') : null;
-        return !empty($requestRouteMiddlewares) ? $requestRouteMiddlewares[0] : self::LOG_TYPE_UNKNOWN;
+        return !empty($requestRouteMiddlewares) ? $requestRouteMiddlewares[0] : Constants::LOG_TYPE_UNKNOWN;
     }
 
     /**
@@ -183,9 +170,10 @@ class Larelog
         $response = $next($request);
         $executionTime = $utils->end();
         $requestUri = $request->getUri();
-        $direction = Larelog::REQUEST_DIRECTION_INCOMING;
+        $direction = Constants::REQUEST_DIRECTION_INCOMING;
         $type = $this->getIncomingRequestType($request);
         $user = Auth::user();
+
         if ($this->shouldLog($requestUri, $direction, $type)) {
             $this->log(
                 $utils->getStartTime(),
@@ -221,8 +209,8 @@ class Larelog
                     function (ResponseInterface $response) use ($request, $utils) {
                         $executionTime = $utils->end();
                         $requestUri = $request->getUri();
-                        $direction = self::REQUEST_DIRECTION_OUTGOING;
-                        $type = self::LOG_TYPE_GUZZLE_HTTP;
+                        $direction = Constants::REQUEST_DIRECTION_OUTGOING;
+                        $type = Constants::LOG_TYPE_GUZZLE_HTTP;
                         $user = Auth::user();
                         if ($this->shouldLog($requestUri, $direction, $type)) {
                             $this->log(
@@ -265,11 +253,11 @@ class Larelog
     {
         $mode = config('larelog.mode');
         switch ($mode) {
-            case self::MODE_BLACKLIST:
+            case Constants::MODE_BLACKLIST:
                 $list = config('larelog.blacklist');
                 $shouldLogByList = !$this->isUriInList($uri, $list);
                 break;
-            case self::MODE_WHITELIST:
+            case Constants::MODE_WHITELIST:
                 $list = config('larelog.whitelist');
                 $shouldLogByList = $this->isUriInList($uri, $list);
                 break;
