@@ -22,12 +22,25 @@ use Illuminate\Support\Carbon;
  * @property string $response
  * @property string $execution_time
  */
-
 class LarelogLog extends Model
 {
     const UPDATED_AT = null;
 
     public $timestamps = [
         'created_at',
+    ];
+
+    protected $fillable = [
+        'direction',
+        'type',
+        'url',
+        'http_code',
+        'http_method',
+        'http_protocol_version',
+        'request_headers',
+        'request',
+        'response_headers',
+        'response',
+        'execution_time',
     ];
 }

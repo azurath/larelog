@@ -54,102 +54,56 @@ class Larelog
         ?float  $executionTime = null
     )
     {
-        $output = config('larelog.output');
-        switch ($output) {
+        $data = [
+            'direction' => $direction,
+            'type' => $type,
+            'url' => $url,
+            'http_code' => $httpCode,
+            'http_method' => $httpMethod,
+            'http_protocol_version' => $httpProtocolVersion,
+            'request_headers' => $requestHeaders,
+            'request' => $request,
+            'response_headers' => $responseHeaders,
+            'response' => $response,
+            'execution_time' => $executionTime,
+        ];
+        $outputTo = config('larelog.output');
+        switch ($outputTo) {
             case self::OUTPUT_DATABASE:
-                self::createDbRecord(...func_get_args());
+                self::createDbRecord($data);
                 break;
             case self::OUTPUT_LOG:
-                logger(self::formatLogAsText(...func_get_args()));
+                logger(self::formatLogAsText($data));
                 break;
         }
     }
 
     /**
-     * @param string|null $direction
-     * @param string|null $type
-     * @param string $url
-     * @param string $httpCode
-     * @param string $httpMethod
-     * @param string $httpProtocolVersion
-     * @param string $requestHeaders
-     * @param string $request
-     * @param string $responseHeaders
-     * @param string $response
-     * @param float|null $executionTime
+     * @param array $data
      * @return LarelogLog
      */
-    protected static function createDbRecord(
-        ?string $direction,
-        ?string $type,
-        string  $url,
-        string  $httpCode,
-        string  $httpMethod,
-        string  $httpProtocolVersion,
-        string  $requestHeaders,
-        string  $request,
-        string  $responseHeaders,
-        string  $response,
-        ?float  $executionTime = null
-    ): LarelogLog {
+    protected static function createDbRecord(array $data): LarelogLog
+    {
         $logItem = new LarelogLog();
-        $logItem->direction = $direction;
-        $logItem->type = $type;
-        $logItem->url = $url;
-        $logItem->http_code = $httpCode;
-        $logItem->http_method = $httpMethod;
-        $logItem->http_protocol_version = $httpProtocolVersion;
-        $logItem->request_headers = $requestHeaders;
-        $logItem->request = $request;
-        $logItem->response_headers = $responseHeaders;
-        $logItem->response = $response;
-        $logItem->execution_time = $executionTime;
+        $logItem->fill($data);
         $logItem->save();
         return $logItem;
     }
 
     /**
-     * @param string|null $direction
-     * @param string|null $type
-     * @param string $url
-     * @param string $httpCode
-     * @param string $httpMethod
-     * @param string $httpProtocolVersion
-     * @param string $requestHeaders
-     * @param string $request
-     * @param string $responseHeaders
-     * @param string $response
-     * @param float|null $executionTime
+     * @param array $data
      * @return string
      */
-    protected static function formatLogAsText(
-        ?string $direction,
-        ?string $type,
-        string  $url,
-        string  $httpCode,
-        string  $httpMethod,
-        string  $httpProtocolVersion,
-        string  $requestHeaders,
-        string  $request,
-        string  $responseHeaders,
-        string  $response,
-        ?float  $executionTime = null
-    ): string
+    protected static function formatLogAsText(array $data): string
     {
-        $formattedRequestHeaders = self::formatLogHeaders($requestHeaders);
-        $formattedResponseHeaders = self::formatLogHeaders($responseHeaders);
-        $data = compact(
-            'direction',
-            'type',
-            'url',
-            'httpCode',
-            'httpMethod',
-            'httpProtocolVersion',
-            'formattedRequestHeaders',
-            'request',
-            'formattedResponseHeaders',
-            'response',
-            'executionTime'
+        $formattedRequestHeaders = self::formatLogHeaders($data['request_headers']);
+        $formattedResponseHeaders = self::formatLogHeaders($data['response_headers']);
+        $data = array_merge(
+            $data,
+            [
+                'formatted_request_headers' => $formattedRequestHeaders,
+                'formatted_response_headers' => $formattedResponseHeaders,
+            ]
         );
         return View::make('larelog::log.log', $data)->render();
     }

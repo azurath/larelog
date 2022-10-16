@@ -4,7 +4,7 @@ namespace Azurath\Larelog\Utils;
 
 class Utils {
 
-    protected float $startTime;
+    protected $startTime;
 
     /**
      * @return void
@@ -20,6 +20,24 @@ class Utils {
     public function end(): ?float
     {
         return $this->startTime ? microtime(true) - $this->startTime : null;
+    }
+
+    /**
+     * @param int|null $size
+     * @param int $precision
+     * @return string|null
+     */
+    public static function formatBytes(?int $size, int $precision = 2): ?string
+    {
+        if ($size > 0) {
+            $size = (int) $size;
+            $base = log($size) / log(1024);
+            $suffixes = [ ' bytes', ' KB', ' MB', ' GB', ' TB' ];
+
+            return round(pow(1024, $base - floor($base)), $precision) . $suffixes[floor($base)];
+        } else {
+            return $size;
+        }
     }
 
 }

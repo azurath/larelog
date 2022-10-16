@@ -1,23 +1,23 @@
 Request Dump:
 Direction:
-    {{$direction}}
+{!! "\t" !!}{{$direction}}
 Type:
-    {{$type}}
+{!! "\t" !!}{{$type}}
 Url:
-    {{$url}}
+{!! "\t" !!}{{$url}}
 Execution Time:
-    {{$executionTime}}
+{!! "\t" !!}{{$execution_time}}
 HTTP Code:
-    {{$httpCode}}
+{!! "\t" !!}{{$http_code}}
 HTTP Method:
-    {{$httpMethod}}
+{!! "\t" !!}{{$http_method}}
 HTTP Protocol Version:
-    {{$httpProtocolVersion}}
+{!! "\t" !!}{{$http_protocol_version}}
 Request Headers:
-    {!! $formattedRequestHeaders !!}
+{!! $formatted_request_headers !!}
 Request:
-    {!! $request !!}
+{!! "\t" !!}{!! $request !!}
 Response Headers:
-    {!! $formattedResponseHeaders !!}
+{!! $formatted_response_headers !!}
 Response:
-    {!! $response !!}
+{!! "\t" !!}{!! $response !!}
