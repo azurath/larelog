@@ -201,7 +201,12 @@ class Larelog
     public function getGuzzleLoggerStack(): HandlerStack
     {
         $stack = HandlerStack::create();
-        $stack->push(function (callable $handler) {
+        $stack->push($this->getGuzzleLoggerStackItem());
+        return $stack;
+    }
+
+    public function getGuzzleLoggerStackItem(): callable {
+        return function (callable $handler) {
             return function (RequestInterface $request, array $options) use ($handler) {
                 $utils = new Utils();
                 $utils->start();
@@ -233,8 +238,7 @@ class Larelog
                     }
                 );
             };
-        });
-        return $stack;
+        };
     }
 
     /**
