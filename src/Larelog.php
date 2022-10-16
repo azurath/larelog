@@ -4,6 +4,7 @@ namespace Azurath\Larelog;
 
 use Azurath\Larelog\Models\LarelogItem;
 use Azurath\Larelog\Utils\Utils;
+use Closure;
 use Exception;
 use GuzzleHttp\HandlerStack;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -87,6 +88,7 @@ class Larelog
             'user_model' => $user ? get_class($user) : null,
             'user_id' => $user ? $user->id : null,
         ];
+
         $logItem = self::createLogItem($data);
 
         $outputTo = config('larelog.output');
@@ -170,14 +172,15 @@ class Larelog
 
     /**
      * @param Request $request
-     * @param Response $response
+     * @param Closure $next
      * @return Response
      * @throws Exception
      */
-    public function logIncomingRequest(Request $request, Response $response): Response
+    public function logIncomingRequest(Request $request, Closure $next): Response
     {
         $utils = new Utils();
         $utils->start();
+        $response = $next($request);
         $executionTime = $utils->end();
         $requestUri = $request->getUri();
         $direction = Larelog::REQUEST_DIRECTION_INCOMING;
@@ -193,9 +196,9 @@ class Larelog
                 $request->getMethod(),
                 $request->getProtocolVersion(),
                 json_encode($request->headers->all()),
-                $request->getContent(),
+                $this->truncateText($request->getContent()),
                 json_encode($response->headers->all()),
-                $response->getContent(),
+                $this->truncateText($response->getContent()),
                 $executionTime,
                 $user
             );
@@ -311,7 +314,7 @@ class Larelog
             try {
                 $result = preg_match($pattern, $uri);
             } catch (Exception $e) {
-                throw new Exception('Regexp error: ' . $e->getMessage() . '. Regex: ' . $pattern);
+                throw new Exception('Regexp error: ' . $e->getMessage() . '. Expression: ' . $pattern);
             }
             return $result !== 0;
         } else {

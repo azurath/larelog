@@ -8,6 +8,7 @@ use Azurath\Larelog\Utils\Utils;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * @property Larelog $larelog
@@ -27,14 +28,12 @@ class Logger
      *
      * @param Request $request
      * @param Closure $next
-     * @return void
+     * @return Response
      * @throws Exception
      */
-    public function handle(Request $request, Closure $next)
+    public function handle(Request $request, Closure $next): Response
     {
-        $response = $next($request);
-        $this->larelog->logIncomingRequest($request, $response);
-        return $response;
+        return $this->larelog->logIncomingRequest($request, $next);
     }
 
 }

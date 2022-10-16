@@ -78,11 +78,6 @@ class LarelogItem extends Model
         return $this->user_id && $this->user_model;
     }
 
-    public function toString(): ?string
-    {
-        return $this->formatAsText();
-    }
-
     public function getFormattedRequestHeadersAttribute(): ?string
     {
         return Larelog::formatLogHeaders($this->request_headers);
@@ -96,6 +91,11 @@ class LarelogItem extends Model
     public function getFormattedExecutionTimeAttribute(): ?string
     {
         return number_format($this->execution_time, 4);
+    }
+
+    public function toString(): ?string
+    {
+        return $this->formatAsText();
     }
 
     public function formatAsText(): ?string

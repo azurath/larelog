@@ -65,9 +65,12 @@ return [
 
     /*
      * Max text length.
-     * Texts (e.g. requests, responces etc) longer than this value will be truncated.
+     * Texts (e.g. requests, responses etc.) longer than this value will be truncated.
+     * MySQL, by default, has 'max_allowed_packet' set to 16 Mb.
+     * If you need to store bigger strings in db,
+     * you should adjust 'max_allowed_packet' value before changing setting below.
      */
-    'max_field_text_length' => 12 * 1024 * 1024,
+    'max_field_text_length' => 7 * 1024 * 1024,
 
     /*
      * Database Log rotation settings
