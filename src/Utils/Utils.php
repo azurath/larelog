@@ -17,7 +17,7 @@ class Utils
      */
     public function start(): float
     {
-        $this->startTime = microtime(true);
+        $this->startTime = $this->getMicroTime();
         return $this->startTime;
     }
 
@@ -31,7 +31,11 @@ class Utils
      */
     public function end(): ?float
     {
-        return $this->startTime ? microtime(true) - $this->startTime : null;
+        return $this->startTime ? $this->getMicroTime() - $this->startTime : null;
+    }
+
+    public function getMicroTime(): ?float {
+        return microtime(true);
     }
 
     /**

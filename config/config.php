@@ -64,11 +64,12 @@ return [
     ],
 
     /*
-     * Max text length.
+     * Max text length for 'request' and 'response' data.
      * Texts (e.g. requests, responses etc.) longer than this value will be truncated.
      * MySQL, by default, has 'max_allowed_packet' set to 16 Mb.
-     * If you need to store bigger strings in db,
-     * you should adjust 'max_allowed_packet' value before changing setting below.
+     * 'request' and 'response' fields in database has LONGBLOB type, which allows store up to 4 Gb of data.
+     * If you need to store more data in database, you should adjust 'max_allowed_packet' value
+     * before changing setting below.
      */
     'max_field_text_length' => 7 * 1024 * 1024,
 
