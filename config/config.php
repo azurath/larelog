@@ -42,6 +42,7 @@ return [
         '\/api\/*',
     ],
 
+    /* Settings below currently not supported */
     'database_log_rotation' => true,
     'min_disk_space_percent_to_clean' => 20,
     'min_database_log_entries_to_clean' => 2 * 10 * 1000,
