@@ -34,7 +34,7 @@ class LarelogRotateLogs
             LarelogLog::where('id', '<', $deleteToRecord->id)
                 ->delete();
             $this->fillStatsAfter($count);
-            logger($this->logCleanupStats($countToDelete));
+            Utils::logData($this->logCleanupStats($countToDelete));
         }
     }
 

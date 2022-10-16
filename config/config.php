@@ -2,17 +2,17 @@
 
 return [
     /*
-     * Mode: 'blacklist' or 'whitelist'.
+     * Logging mode: 'blacklist' or 'whitelist'.
      */
     'mode' => 'blacklist',
 
     /*
-     * Output to 'database' or 'log'
+     * Output logs to 'database', 'log' or 'callback'
     */
     'output' => 'database',
 
     /*
-     * Directions: 'incoming' or 'outgoing'
+     * What request directions we should log: 'incoming', 'outgoing'
      */
     'directions' => [
         'incoming',
@@ -20,16 +20,19 @@ return [
     ],
 
     /*
-     * Types: 'web', 'api', 'guzzlehttp'
+     * What request types we should log: 'web', 'api', 'guzzlehttp', 'unknown'
+     * 'unknown' type basically applied for incoming requests that do not match any route.
      */
     'types' => [
         'web',
         'api',
         'guzzlehttp',
+        'unknown',
     ],
 
     /*
      * Blacklist (works only if mode set to 'blacklist')
+     * Regular expressions are supported. Do not forget to escape characters like '/', '_', '?' etc.
      */
     'blacklist' => [
         '\/api\/some\_route\/.*?some\_slug',
@@ -37,19 +40,21 @@ return [
 
     /*
      * Whitelist (works only if mode set to 'whitelist'
+     * Regular expressions are supported. Do not forget to escape characters like '/', '_', '?' etc.
      */
     'whitelist' => [
         '\/api\/*',
     ],
 
-    /* Database Log rotation settings
+    /*
+     * Database Log rotation settings
      * Log rotation deletes oldest 50% of existing logs.
-     */
+    */
 
     /* Rotate logs? */
     'database_log_rotation' => true,
 
-    /* Minimum disk space percent to perform cleanup */
+    /* Minimum free disk space percent to perform cleanup */
     'min_free_disk_space_percent_to_clean' => 20,
 
     /* Minimum database log entries count to perform cleanup by one of conditions */

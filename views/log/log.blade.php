@@ -1,23 +1,31 @@
 Request Dump:
-Direction:
-{!! "\t" !!}{{$direction}}
-Type:
-{!! "\t" !!}{{$type}}
-Url:
-{!! "\t" !!}{{$url}}
-Execution Time:
-{!! "\t" !!}{{$execution_time}}
-HTTP Code:
-{!! "\t" !!}{{$http_code}}
-HTTP Method:
-{!! "\t" !!}{{$http_method}}
-HTTP Protocol Version:
-{!! "\t" !!}{{$http_protocol_version}}
+Started At: {{$logItem->started_at}}
+Execution Time: {{$logItem->formatted_execution_time}} seconds.
+Direction: {{$logItem->direction}}
+Type: {{$logItem->type}}
+Url: {{$logItem->url}}
+HTTP Code: {{$logItem->http_code}}
+HTTP Method: {{$logItem->http_method}}
+HTTP Protocol Version: {{$logItem->http_protocol_version}}
+@if($logItem->user_model)
+User Model: {{$logItem->user_model}}
+@endif
+@if($logItem->user_id)
+User Id: {{$logItem->user_id}}
+@endif
 Request Headers:
-{!! $formatted_request_headers !!}
+@if($logItem->request_headers)
+{!! $logItem->formatted_request_headers !!}
+@endif
 Request:
-{!! "\t" !!}{!! $request !!}
+@if($logItem->request)
+{!! "\t" !!}{!! $logItem->request !!}
+@endif
 Response Headers:
-{!! $formatted_response_headers !!}
+@if($logItem->response_headers)
+{!! $logItem->formatted_response_headers !!}
+@endif
 Response:
-{!! "\t" !!}{!! $response !!}
+@if($logItem->response)
+{!! "\t" !!}{!! $logItem->response !!}
+@endif

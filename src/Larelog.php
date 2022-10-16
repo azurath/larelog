@@ -6,8 +6,9 @@ use Azurath\Larelog\Models\LarelogLog;
 use Azurath\Larelog\Utils\Utils;
 use Exception;
 use GuzzleHttp\HandlerStack;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Auth;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -16,6 +17,7 @@ class Larelog
     const MAX_TEXT_LENGTH = 12 * 1024 * 1024;
 
     const LOG_TYPE_GUZZLE_HTTP = 'guzzlehttp';
+    const LOG_TYPE_UNKNOWN = 'unknown';
 
     const REQUEST_DIRECTION_INCOMING = 'incoming';
     const REQUEST_DIRECTION_OUTGOING = 'outgoing';
@@ -25,8 +27,10 @@ class Larelog
 
     const OUTPUT_DATABASE = 'database';
     const OUTPUT_LOG = 'log';
+    const OUTPUT_CALLBACK
 
     /**
+     * @param float|null $startTime
      * @param string|null $direction
      * @param string|null $type
      * @param string $url
@@ -38,26 +42,30 @@ class Larelog
      * @param string $responseHeaders
      * @param string $response
      * @param float|null $executionTime
+     * @param mixed $user
      * @return void
      * @throws Exception
      */
     public static function log(
-        ?string $direction,
-        ?string $type,
-        string  $url,
-        string  $httpCode,
-        string  $httpMethod,
-        string  $httpProtocolVersion,
-        string  $requestHeaders,
-        string  $request,
-        string  $responseHeaders,
-        string  $response,
-        ?float  $executionTime = null
+        ?float          $startTime,
+        ?string         $direction,
+        ?string         $type,
+        string          $url,
+        string          $httpCode,
+        string          $httpMethod,
+        string          $httpProtocolVersion,
+        string          $requestHeaders,
+        string          $request,
+        string          $responseHeaders,
+        string          $response,
+        ?float          $executionTime = null,
+        Authenticatable $user = null
     )
     {
         $data = [
+            'started_at' => $startTime,
             'direction' => $direction,
-            'type' => $type,
+            'type' => $type ?? self::LOG_TYPE_UNKNOWN,
             'url' => $url,
             'http_code' => $httpCode,
             'http_method' => $httpMethod,
@@ -67,6 +75,8 @@ class Larelog
             'response_headers' => $responseHeaders,
             'response' => $response,
             'execution_time' => $executionTime,
+            'user_model' => $user ? get_class($user) : null,
+            'user_id' => $user ? $user->id : null,
         ];
         $logItem = self::createLogItem($data);
 
@@ -76,7 +86,7 @@ class Larelog
                 $logItem->save();
                 break;
             case self::OUTPUT_LOG:
-                logger($logItem->formatAsText());
+                Utils::logData($logItem->formatAsText());
                 break;
             default:
                 throw new Exception('Unknown log output method: ' . $outputTo);
@@ -95,22 +105,22 @@ class Larelog
     }
 
     /**
-     * @param string $data
+     * @param string $headers
      * @return string
      */
-    public static function formatLogHeaders(string $data): string
+    public static function formatLogHeaders(string $headers): string
     {
         $valuesOnly = false;
-        if (!$data) {
+        if (!$headers) {
             return '';
         }
-        $decodedData = json_decode($data, true);
+        $decodedData = json_decode($headers, true);
         if (!$decodedData) {
-            $decodedData = explode(PHP_EOL, $data);
+            $decodedData = explode(PHP_EOL, $headers);
             $valuesOnly = true;
         }
-        if ($decodedData === $data) {
-            return $data;
+        if ($decodedData === $headers) {
+            return $headers;
         }
         $resultData = [];
 
@@ -128,8 +138,9 @@ class Larelog
 
     public function getIncomingRequestType(Request $request): ?string
     {
-        $requestRouteMiddlewares = $request->route()->getAction('middleware');
-        return !empty($requestRouteMiddlewares) ? $requestRouteMiddlewares[0] : null;
+        $route = $request->route();
+        $requestRouteMiddlewares = $route ? $route->getAction('middleware') : null;
+        return !empty($requestRouteMiddlewares) ? $requestRouteMiddlewares[0] : self::LOG_TYPE_UNKNOWN;
     }
 
     public function getGuzzleLoggerStack(): HandlerStack
@@ -145,8 +156,10 @@ class Larelog
                         $requestUri = $request->getUri();
                         $direction = self::REQUEST_DIRECTION_OUTGOING;
                         $type = self::LOG_TYPE_GUZZLE_HTTP;
+                        $user = Auth::user();
                         if ($this->shouldLog($requestUri, $direction, $type)) {
                             $this->log(
+                                $utils->getStartTime(),
                                 $direction,
                                 $type,
                                 $requestUri,
@@ -157,7 +170,8 @@ class Larelog
                                 $this->truncateText($request->getBody()),
                                 json_encode($response->getHeaders()),
                                 $this->truncateText($response->getBody()),
-                                $executionTime
+                                $executionTime,
+                                $user
                             );
                         }
                         return $response;
@@ -182,23 +196,34 @@ class Larelog
         switch ($mode) {
             case self::MODE_BLACKLIST:
                 $list = config('larelog.blacklist');
-                return in_array($direction, config('larelog.directions'))
-                    && in_array($type, config('larelog.types'))
-                    && !$this->isUriInList($uri, $list, $direction, $type);
+                $shouldLogByList = !$this->isUriInList($uri, $list);
+                break;
             case self::MODE_WHITELIST:
                 $list = config('larelog.whitelist');
-                return in_array($direction, config('larelog.directions'))
-                    && in_array($type, config('larelog.types'))
-                    && $this->isUriInList($uri, $list, $direction, $type);
+                $shouldLogByList = $this->isUriInList($uri, $list);
+                break;
             default:
                 throw new Exception('Unknown mode: ' . $mode);
         }
+        return $this->shouldLogByDirection($direction)
+            && $this->shouldLogByType($type)
+            && $shouldLogByList;
+    }
+
+    protected function shouldLogByDirection(?string $direction): bool
+    {
+        return in_array($direction, config('larelog.directions'));
+    }
+
+    protected function shouldLogByType(?string $type): bool
+    {
+        return (empty($type) || in_array($type, config('larelog.types')));
     }
 
     /**
      * @throws Exception
      */
-    protected function isUriInList(string $uri, array $list, ?string $direction, ?string $type): bool
+    protected function isUriInList(string $uri, array $list): bool
     {
         $subpattern = implode('|', $list);
         $pattern = '/(' . $subpattern . ')/';

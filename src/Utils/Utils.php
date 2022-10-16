@@ -2,16 +2,24 @@
 
 namespace Azurath\Larelog\Utils;
 
+/**
+ *
+ */
 class Utils {
 
     protected $startTime;
 
     /**
-     * @return void
+     * @return float
      */
-    public function start(): void
+    public function start(): float
     {
         $this->startTime = microtime(true);
+        return $this->startTime;
+    }
+
+    public function getStartTime(): ?float {
+        return $this->startTime;
     }
 
     /**
@@ -38,6 +46,15 @@ class Utils {
         } else {
             return $size;
         }
+    }
+
+    /**
+     * @param $data
+     * @return void
+     */
+    public static function logData($data): void
+    {
+        logger($data);
     }
 
 }

@@ -7,6 +7,7 @@ use Closure;
 use Azurath\Larelog\Utils\Utils;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * @property Larelog $larelog
@@ -40,8 +41,10 @@ class Logger
         $requestUri = $request->getUri();
         $direction = Larelog::REQUEST_DIRECTION_INCOMING;
         $type = $this->larelog->getIncomingRequestType($request);
+        $user = Auth::user();
         if ($this->larelog->shouldLog($requestUri, $direction, $type)) {
             $this->larelog->log(
+                $utils->getStartTime(),
                 $direction,
                 $type,
                 $requestUri,
@@ -52,7 +55,8 @@ class Logger
                 $request->getContent(),
                 json_encode($response->headers->all()),
                 $response->getContent(),
-                $executionTime
+                $executionTime,
+                $user
             );
         }
 
