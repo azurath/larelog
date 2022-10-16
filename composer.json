@@ -1,0 +1,29 @@
+{
+    "name": "azurath/larelog",
+    "description": "Laravel Request Logger",
+    "type": "package",
+    "require": {
+        "ext-json": "*",
+        "guzzlehttp/guzzle": "^7.5"
+    },
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Azurath\\Larelog\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Sergey Pervushin",
+            "email": "i@neo-rage.ru"
+        }
+    ],
+    "minimum-stability": "stable",
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Azurath\\Larelog\\LarelogProvider"
+            ]
+        }
+    }
+}
