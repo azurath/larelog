@@ -25,9 +25,7 @@ class TableLarelogItemsChangeRequestAndResponseToLongblob extends Migration
      */
     public function down()
     {
-        Schema::table('larelog_items', function (Blueprint $table) {
-            $table->mediumText('request')->nullable()->change();
-            $table->mediumText('response')->nullable()->change();
-        });
+        DB::statement("ALTER TABLE `larelog_items` MODIFY `request` MEDIUMTEXT null");
+        DB::statement("ALTER TABLE `larelog_items` MODIFY `response` MEDIUMTEXT null");
     }
 }
