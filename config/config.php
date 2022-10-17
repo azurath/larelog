@@ -7,12 +7,15 @@ return [
     'mode' => 'blacklist',
 
     /*
-     * Output logs to 'database' (table `larelog_items`), 'log' (you can create new channel and point log to it below) or 'callback'
+     * Output logs to:
+     * - 'database' (table `larelog_items`)
+     * - 'log' (you can create new log channel and point log to it below)
+     * - 'callback' (you can pass method which will be called for each captured log item)
      */
     'output' => 'database',
 
     /*
-     * Log channel name of 'output' set to 'log'.
+     * Log channel name (when 'output' set to 'log').
      * Don't forget to create channel with that name in 'config/logging.php'.
      */
     'log_channel_name' => 'single',
@@ -68,7 +71,8 @@ return [
      * Texts (e.g. requests, responses etc.) longer than this value will be truncated.
      * MySQL, by default, has 'max_allowed_packet' set to 16 Mb.
      * 'request' and 'response' fields in database has LONGBLOB type, which allows store up to 4 Gb of data.
-     * If you need to store more data in database, you should adjust 'max_allowed_packet' value
+     * If you need to store huge request data in database (more than 7Mb per request/response),
+     * you should adjust 'max_allowed_packet' value at mysql server settings.
      * before changing setting below.
      */
     'max_field_text_length' => 7 * 1024 * 1024,
@@ -78,15 +82,33 @@ return [
      * Log rotation deletes oldest 50% of existing logs.
     */
 
-    /* Rotate logs? */
+    /*
+     * Rotate logs?
+    */
     'database_log_rotation' => true,
 
-    /* Minimum free disk space percent to perform cleanup */
-    'min_free_disk_space_percent_to_clean' => 20,
-
-    /* Minimum database log entries count to perform cleanup by one of conditions */
+    /*
+     * Minimum database log entries count to perform cleanup by any matched condition
+     */
     'min_database_log_entries_to_clean' => 2 * 10 * 1000,
 
-    /* Maximum database log entries before cleanup by entries count condition */
+    /*
+     * Log entry time to leave (seconds).
+     * This is priority setting. If logs are cleaned by TTL, then next conditions will match remained logs count.
+     * Any log item older than given value will be deleted on next cleanup.
+     * Set to boolean false to disable.
+     */
+    'log_entry_ttl' => 60 * 60 * 24,
+
+    /*
+     * Minimum free disk space percent to perform cleanup.
+     * Set to boolean false to disable.
+     */
+    'min_free_disk_space_percent_to_clean' => 20,
+
+    /*
+     * Maximum database log entries before cleanup by entries count condition.
+     * Set to boolean false to disable.
+     */
     'max_database_log_entries' => 1000 * 1000,
 ];

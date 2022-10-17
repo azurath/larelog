@@ -205,7 +205,8 @@ class Larelog
         return $stack;
     }
 
-    public function getGuzzleLoggerStackItem(): callable {
+    public function getGuzzleLoggerStackItem(): callable
+    {
         return function (callable $handler) {
             return function (RequestInterface $request, array $options) use ($handler) {
                 $utils = new Utils();
@@ -291,7 +292,6 @@ class Larelog
         return (empty($type) || in_array($type, config('larelog.types')));
     }
 
-
     /**
      * @param string $uri
      * @param array $list
@@ -313,7 +313,6 @@ class Larelog
             return false;
         }
     }
-
 
     /**
      * @param LarelogItem $logItem
