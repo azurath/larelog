@@ -14,9 +14,11 @@ class CreateLarelogLogsTable extends Migration
      */
     public function up()
     {
-        Schema::create('larelog_logs', function (Blueprint $table) {
+        Schema::create('larelog_items', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->timestamp('created_at');
+            $table->timestamp('started_at')->nullable();
+            $table->float('execution_time', 16, 8);
             $table->string('direction', 10)->nullable();
             $table->string('type', 20)->nullable();
             $table->string('http_method', 20)->nullable();
@@ -27,10 +29,13 @@ class CreateLarelogLogsTable extends Migration
             $table->mediumText('request')->nullable();
             $table->text('response_headers')->nullable();
             $table->mediumText('response')->nullable();
-            $table->float('execution_time', 16, 8);
-            $table->index([ 'created_at', 'type', DB::raw('url(20)') ]);
-            $table->index([ 'created_at', DB::raw('url(20)') ]);
+            $table->string('user_model')->nullable();
+            $table->string('user_id')->nullable();
+            $table->index(['created_at', 'type', DB::raw('url(20)')], 'larelog_logs_created_at_type_url_index');
+            $table->index(['created_at', DB::raw('url(20)')], 'larelog_logs_created_at_url_index');
         });
+        DB::statement("ALTER TABLE `larelog_items` MODIFY `request` LONGBLOB null");
+        DB::statement("ALTER TABLE `larelog_items` MODIFY `response` LONGBLOB null");
     }
 
     /**
@@ -40,6 +45,6 @@ class CreateLarelogLogsTable extends Migration
      */
     public function down()
     {
-        Schema::drop('larelog_logs');
+        Schema::drop('larelog_items');
     }
 }
