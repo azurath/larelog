@@ -2,11 +2,6 @@
 
 return [
     /*
-     * Logging mode: 'blacklist' or 'whitelist'.
-     */
-    'mode' => 'blacklist',
-
-    /*
      * Output logs to:
      * - 'database' (table `larelog_items`)
      * - 'log' (you can create new log channel and point log to it below)
@@ -25,7 +20,7 @@ return [
      * This method will receive LarelogItem model instance as a parameter if new log event occurs.
      * Works only if 'output' set to 'callback'.
      * Example value:
-     * [\App\Http\Controllers\TestController::class, 'testCallback']
+     * [\App\Http\Controllers\TestController::class, 'logEntryCallback']
      */
     'output_callback' => null,
 
@@ -49,25 +44,52 @@ return [
     ],
 
     /*
-     * Blacklist (works only if mode set to 'blacklist')
+     * URL filtering mode: 'blacklist' or 'whitelist'.
+     */
+    'url_filter_mode' => 'blacklist',
+
+    /*
+     * URLs list to filter.
+     * Requests matches that URL patterns will be white- or blacklisted, depends on 'url_filter_mode' value.
      * Regular expressions are supported. Do not forget to escape characters like '/', '_', '?' etc.
+     * Case sensitive.
      * Example: '\/api\/some\_route\/.*?some\_slug'.
      */
-    'blacklist' => [
+    'url_list' => [
         //
     ],
 
     /*
-     * Whitelist (works only if mode set to 'whitelist'
-     * Regular expressions are supported. Do not forget to escape characters like '/', '_', '?' etc.
-     * Example: '\/api\/*'.
+     * MIME filtering mode: 'blacklist' or 'whitelist'.
      */
-    'whitelist' => [
+    'mime_filter_mode' => 'blacklist',
+
+    /*
+     * MIMEs list to filter.
+     * Requests with that MIMEs (in request or response headers) will be white- or blacklisted, depends on 'mime_filter_mode' value.
+     * Case insensitive.
+     * Example: 'application/json'
+     */
+    'mime_list' => [
         //
     ],
 
     /*
-     * Max text length for 'request' and 'response' data.
+     * HTTP status code filtering mode: 'blacklist' or 'whitelist'.
+     */
+    'http_status_code_filter_mode' => 'blacklist',
+
+    /*
+     * HTTP status codes list to filter.
+     * Requests with these status codes will be white- or blacklisted, depends on 'http_status_code_filter_mode' value.
+     * Example: '404', '500'
+     */
+    'http_status_code_list' => [
+        //
+    ],
+
+    /*
+     * Max text length for 'request' and 'response' data in database.
      * Texts (e.g. requests, responses etc.) longer than this value will be truncated.
      * MySQL, by default, has 'max_allowed_packet' set to 16 Mb.
      * 'request' and 'response' fields in database has LONGBLOB type, which allows store up to 4 Gb of data.
@@ -79,11 +101,10 @@ return [
 
     /*
      * Database Log rotation settings
-     * Log rotation deletes oldest 50% of existing logs.
     */
 
     /*
-     * Rotate logs?
+     * Rotate database logs?
     */
     'database_log_rotation' => true,
 
@@ -97,18 +118,21 @@ return [
      * This is priority setting. If logs are cleaned by TTL, then next conditions will match remained logs count.
      * Any log item older than given value will be deleted on next cleanup.
      * Set to boolean false to disable.
+     * Default TTL is 30 days.
      */
-    'log_entry_ttl' => 60 * 60 * 24,
-
-    /*
-     * Minimum free disk space percent to perform cleanup.
-     * Set to boolean false to disable.
-     */
-    'min_free_disk_space_percent_to_clean' => 20,
+    'log_entry_ttl' => 60 * 60 * 24 * 30,
 
     /*
      * Maximum database log entries before cleanup by entries count condition.
      * Set to boolean false to disable.
      */
-    'max_database_log_entries' => 1000 * 1000,
+    'max_database_log_entries' => 250 * 1000,
+
+    /*
+     * Callback that will be called after successful cleanup (if something cleaned),
+     * null to disable. It will receive stats array as a parameter.
+     * Example value:
+     * [\App\Http\Controllers\TestController::class, 'callbackAfterCleanup']
+     */
+    'callback_after_cleanup' => null,
 ];

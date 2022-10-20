@@ -4,11 +4,11 @@
 
 ### Features: 
 + Log incoming (Laravel) and outgoing (GuzzleHttp) requests
-+ Blacklists and whitelists for URLs with regular expressions
++ Blacklists and whitelists for URLs (with regular expressions), MIME types, HTTP status codes
 + Save logs to database
 + Write logs to Laravel log
 + Pass log items to user callback function
-+ Log rotation (by disk space, count and date)
++ Log rotation (by count and date)
 + Save authenticated user (multiple laravel user models are supported)
 
 ### Installation
@@ -19,7 +19,7 @@
 5. Enjoy.
 
 ### GuzzleHttp
-If you're using GuzzleHttp and want to log requests perfomed via it, just pass addinional parameter while creating GuzzleHttp instance:
+If you're using GuzzleHttp and want to log requests performed via it, just pass additional parameter while creating GuzzleHttp instance:
 ```
     $client = new \GuzzleHttp\Client([
         'handler' => (new \Azurath\Larelog\Larelog())->getGuzzleLoggerStack(),
@@ -37,7 +37,13 @@ Or you can attach Larelog callback to existing stack:
 Settings stored in `config/larelog.php`.
 
 ### Log rotation
-Add `$schedule->job(new \Azurath\Larelog\LarelogRotateLogs())->hourly();` to `app/Console/Kernel.php` to enable log rotation.
+Add:  
+```
+$schedule->job(new \Azurath\Larelog\Jobs\RotateLogs())
+->hourly()
+->withoutOverlapping(60);
+```  
+to `app/Console/Kernel.php` to enable log rotation.
 
 ### Convert request item to text
 You can get text representation of log item stored in database:

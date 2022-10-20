@@ -2,6 +2,7 @@
 
 namespace Azurath\Larelog\Utils;
 
+use Exception;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -34,7 +35,8 @@ class Utils
         return $this->startTime ? $this->getMicroTime() - $this->startTime : null;
     }
 
-    public function getMicroTime(): ?float {
+    public function getMicroTime(): ?float
+    {
         return microtime(true);
     }
 
@@ -65,6 +67,22 @@ class Utils
     {
         $logChannel = $channel ?: config('logging.default');
         Log::channel($logChannel)->info($data);
+    }
+
+    /**
+     * @param array|null $callback
+     * @param mixed ...$args
+     * @return void
+     * @throws Exception
+     */
+    public function callCallback(?array $callback, ...$args): void
+    {
+        if (!empty($callback) && sizeof($callback) === 2 && method_exists($callback[0], $callback[1])) {
+            $callback(...$args);
+        } else {
+            $callbackAsText = !empty($callback) ? implode(', ', $callback) : json_encode($callback);
+            throw new Exception('Callback function not found. Trying to call: [' . $callbackAsText . ']');
+        }
     }
 
 }

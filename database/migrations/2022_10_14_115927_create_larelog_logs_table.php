@@ -33,6 +33,7 @@ class CreateLarelogLogsTable extends Migration
             $table->string('user_id')->nullable();
             $table->index(['created_at', 'type', DB::raw('url(20)')], 'larelog_logs_created_at_type_url_index');
             $table->index(['created_at', DB::raw('url(20)')], 'larelog_logs_created_at_url_index');
+            $table->index(['created_at'], 'larelog_logs_created_at_index');
         });
         DB::statement("ALTER TABLE `larelog_items` MODIFY `request` LONGBLOB null");
         DB::statement("ALTER TABLE `larelog_items` MODIFY `response` LONGBLOB null");

@@ -7,6 +7,7 @@ use Azurath\Larelog\Utils\Utils;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\View;
 
 class LarelogRotateLogs
@@ -20,21 +21,33 @@ class LarelogRotateLogs
     public const STATS_LOGS_COUNT_LEFT = 'logs_count_left';
     public const STATS_CLEANUP_TIME = 'cleanup_time';
 
-    protected const METHOD_TTL = 'ttl';
-    protected const METHOD_DISK_SPACE = 'disk-space';
-    protected const METHOD_COUNT = 'count';
+    public const METHOD_TTL = 'ttl';
+    public const METHOD_COUNT = 'count';
 
+    /**
+     * @var array
+     */
     protected $cleanedStats;
-    protected $initialLogsCount;
+    /**
+     * @var
+     */
+    protected $logsCount;
+    /**
+     * @var Utils
+     */
     protected $utils;
 
+    /**
+     *
+     * @throws Exception
+     */
     public function __construct()
     {
         $this->utils = new Utils();
-        $this->initialLogsCount = $this->getLogsCount();
+        $this->setLogsCount($this->getLogsCountFromDb());
         $this->cleanedStats = [];
         $this->cleanedStats[self::STATS_METHODS] = [];
-        $this->cleanedStats[self::STATS_TOTAL_COUNT] = $this->initialLogsCount;
+        $this->cleanedStats[self::STATS_TOTAL_COUNT] = $this->getLogsCount();
         $this->cleanedStats[self::STATS_TOTAL_CLEANED_COUNT] = 0;
         $this->cleanedStats[self::STATS_TOTAL_COUNT_LEFT] = 0;
     }
@@ -46,32 +59,51 @@ class LarelogRotateLogs
     {
         if ($this->shouldClean()) {
             $this->utils->start();
-            $this->cleanLogsByTTL();
-            $this->cleanLogsByCount();
-            $this->cleanLogsByDiskSpace();
+            $cleanedCount = $this->cleanLogsByTTL();
+            $this->setLogsCount($this->getLogsCount() - $cleanedCount);
+            $cleanedCount = $this->cleanLogsByCount();
+            $this->setLogsCount($this->getLogsCount() - $cleanedCount);
             if ($this->isSomethingCleaned()) {
                 $this->storeCleanupTime($this->utils->end());
                 Larelog::printToLog($this->logCleanupStats());
+                $this->callbackAfterSuccessfulCleanup();
             }
         }
     }
 
-    protected function getLogsCount(): int
+    /**
+     * @return int|null
+     */
+    protected function getLogsCount(): ?int
     {
-        return LarelogItem::query()
-            ->count();
+        return $this->logsCount;
     }
 
     /**
-     * @param int $count
-     * @return int
+     * @param int $logsCount
+     * @return void
      */
-    protected function getCountToDelete(int $count): int
+    protected function setLogsCount(int $logsCount): void
     {
-        return floor($count / 2);
+        $this->logsCount = $logsCount;
     }
 
+    /**
+     * @return int|null
+     * @throws Exception
+     */
+    protected function getLogsCountFromDb(): ?int
+    {
+        return LarelogItem::query()
+            ->count('id');
+    }
 
+    /**
+     * @param string $method
+     * @param int $count
+     * @param int $cleanedCount
+     * @return void
+     */
     protected function pushResultToStats(string $method, int $count, int $cleanedCount): void
     {
         $this->cleanedStats[self::STATS_METHODS][$method] = [
@@ -83,11 +115,18 @@ class LarelogRotateLogs
         $this->cleanedStats[self::STATS_TOTAL_COUNT_LEFT] = $count - $cleanedCount;
     }
 
+    /**
+     * @return bool
+     */
     protected function isSomethingCleaned(): bool
     {
         return !!$this->cleanedStats[self::STATS_TOTAL_CLEANED_COUNT];
     }
 
+    /**
+     * @param float $time
+     * @return void
+     */
     protected function storeCleanupTime(float $time): void
     {
         $this->cleanedStats[self::STATS_CLEANUP_TIME] = $time;
@@ -99,27 +138,7 @@ class LarelogRotateLogs
     protected function shouldClean(): bool
     {
         return config('larelog.database_log_rotation')
-            && $this->initialLogsCount >= config('larelog.min_database_log_entries_to_clean');
-    }
-
-    /**
-     * @return int
-     */
-    protected function getFreeSpacePercent(): int
-    {
-        $totalSpace = disk_total_space('/');
-        $freeSpace = disk_free_space('/');
-        return $totalSpace ? ceil($freeSpace / $totalSpace * 100) : 100;
-    }
-
-    /**
-     * @return bool
-     */
-    protected function shouldCleanByDiskSpace(): bool
-    {
-        $minFreeDiskSpacePercent = config('larelog.min_free_disk_space_percent_to_clean');
-        return $minFreeDiskSpacePercent !== false
-            && $this->getFreeSpacePercent() <= $minFreeDiskSpacePercent;
+            && $this->logsCount >= config('larelog.min_database_log_entries_to_clean');
     }
 
     /**
@@ -133,6 +152,10 @@ class LarelogRotateLogs
             && $count >= config('larelog.max_database_log_entries');
     }
 
+    /**
+     * @param int $threshold
+     * @return bool
+     */
     protected function shouldCleanByTTL(int $threshold): bool
     {
         return !!$this->getThresholdQuery($threshold)
@@ -143,6 +166,9 @@ class LarelogRotateLogs
             ->count();
     }
 
+    /**
+     * @return string
+     */
     protected function logCleanupStats(): string
     {
         return View::make('larelog::log.logs_cleaned')
@@ -151,57 +177,69 @@ class LarelogRotateLogs
             ]);
     }
 
-    protected function deleteHalfPartOfLogs(int $count): int
+    /**
+     * @param int $countToDelete
+     * @return int
+     */
+    protected function deleteOldestLogs(int $countToDelete): int
     {
-        $countToDelete = $this->getCountToDelete($count);
-        $deleteToRecord = LarelogItem::query()
+        return LarelogItem::query()
             ->orderBy('id')
-            ->skip($countToDelete)
-            ->take(1)
-            ->first();
-        return $deleteToRecord
-            ? LarelogItem::query()
-                ->where('id', '<', $deleteToRecord->id)
-                ->delete()
-            : 0;
+            ->take($countToDelete)
+            ->delete();
     }
 
-    protected function cleanLogsByTTL(): void
+    /**
+     * @return int
+     */
+    protected function cleanLogsByTTL(): int
     {
         $threshold = config('larelog.log_entry_ttl');
+        $cleanedCount = 0;
         if ($threshold !== false && $this->shouldCleanByTTL($threshold)) {
             $count = $this->getLogsCount();
             $cleanedCount = $this->getThresholdQuery($threshold)
                 ->delete();
             $this->pushResultToStats(self::METHOD_TTL, $count, $cleanedCount);
         }
+        return $cleanedCount;
     }
 
+    /**
+     * @param int $threshold
+     * @return Builder
+     */
     protected function getThresholdQuery(int $threshold): Builder
     {
         $toDate = Carbon::now()->subSeconds($threshold);
         return LarelogItem::query()
+            ->select('id')
             ->where('created_at', '<=', $toDate);
     }
 
-    protected function cleanLogsByCount(): void
+    /**
+     * @return int
+     */
+    protected function cleanLogsByCount(): int
     {
         $count = $this->getLogsCount();
+        $allowedCount = config('larelog.max_database_log_entries');
+        $cleanedCount = 0;
         if ($this->shouldCleanByLogsCount($count)) {
-            $cleanedCount = $this->deleteHalfPartOfLogs($count);
+            $cleanedCount = $this->deleteOldestLogs($count - $allowedCount);
             $this->pushResultToStats(self::METHOD_COUNT, $count, $cleanedCount);
         }
+        return $cleanedCount;
     }
 
-    protected function cleanLogsByDiskSpace(): void
+    /**
+     * @return void
+     * @throws Exception
+     */
+    protected function callbackAfterSuccessfulCleanup(): void
     {
-        if ($this->shouldCleanByDiskSpace()) {
-            $count = $this->getLogsCount();
-            $cleanedCount = $this->deleteHalfPartOfLogs($count);
-            if ($cleanedCount) {
-                $this->pushResultToStats(self::METHOD_DISK_SPACE, $count, $cleanedCount);
-            }
-        }
+        $callback = config('larelog.callback_after_cleanup');
+        $this->utils->callCallback($callback, $this->cleanedStats);
     }
 
 }

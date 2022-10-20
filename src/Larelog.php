@@ -16,6 +16,9 @@ use Symfony\Component\HttpFoundation\Response;
 
 class Larelog
 {
+    /**
+     * @var Utils
+     */
     protected $utils;
 
     /**
@@ -170,17 +173,19 @@ class Larelog
         $response = $next($request);
         $executionTime = $utils->end();
         $requestUri = $request->getUri();
+        $mimes = $this->getMimes($request->headers->get('Content-Type'), $response->headers->get('Content-Type'));
         $direction = Constants::REQUEST_DIRECTION_INCOMING;
         $type = $this->getIncomingRequestType($request);
+        $httpStatusCode = $response->getStatusCode();
         $user = Auth::user();
 
-        if ($this->shouldLog($requestUri, $direction, $type)) {
+        if ($this->shouldLog($requestUri, $mimes, $httpStatusCode, $direction, $type)) {
             $this->log(
                 $utils->getStartTime(),
                 $direction,
                 $type,
                 $requestUri,
-                $response->getStatusCode(),
+                $httpStatusCode,
                 $request->getMethod(),
                 $request->getProtocolVersion(),
                 json_encode($request->headers->all()),
@@ -205,6 +210,9 @@ class Larelog
         return $stack;
     }
 
+    /**
+     * @return callable
+     */
     public function getGuzzleLoggerStackItem(): callable
     {
         return function (callable $handler) {
@@ -215,16 +223,18 @@ class Larelog
                     function (ResponseInterface $response) use ($request, $utils) {
                         $executionTime = $utils->end();
                         $requestUri = $request->getUri();
+                        $mimes = $this->getMimes($request->getHeader('Content-Type')[0], $response->getHeader('Content-Type')[0]);
                         $direction = Constants::REQUEST_DIRECTION_OUTGOING;
                         $type = Constants::LOG_TYPE_GUZZLE_HTTP;
+                        $httpStatusCode = $response->getStatusCode();
                         $user = Auth::user();
-                        if ($this->shouldLog($requestUri, $direction, $type)) {
+                        if ($this->shouldLog($requestUri, $mimes, $httpStatusCode, $direction, $type)) {
                             $this->log(
                                 $utils->getStartTime(),
                                 $direction,
                                 $type,
                                 $requestUri,
-                                $response->getStatusCode(),
+                                $httpStatusCode,
                                 $request->getMethod(),
                                 'HTTP/' . $response->getProtocolVersion(),
                                 json_encode($request->getHeaders()),
@@ -243,6 +253,23 @@ class Larelog
     }
 
     /**
+     * @param string|null $requestContentType
+     * @param string|null $responseContentType
+     * @return array|null
+     */
+    protected function getMimes(?string $requestContentType, ?string $responseContentType): ?array
+    {
+        $array = [];
+        if ($requestContentType) {
+            $array[] = explode(';', $requestContentType)[0];
+        }
+        if ($responseContentType) {
+            $array[] = explode(';', $responseContentType)[0];
+        }
+        return $array;
+    }
+
+    /**
      * @param string $text
      * @return string
      */
@@ -254,24 +281,80 @@ class Larelog
     /**
      * @throws Exception
      */
-    public function shouldLog(string $uri, ?string $direction, ?string $type): bool
+    public function shouldLog(string $uri, ?array $mimes, ?string $httpStatusCode, ?string $direction, ?string $type): bool
     {
-        $mode = config('larelog.mode');
-        switch ($mode) {
+        return
+            $this->shouldLogByUri($uri)
+            && $this->shouldLogByMime($mimes)
+            && $this->shouldLogByHttpStatusCode($httpStatusCode)
+            && $this->shouldLogByDirection($direction)
+            && $this->shouldLogByType($type);
+    }
+
+    /**
+     * @param string $uri
+     * @return bool
+     * @throws Exception
+     */
+    protected function shouldLogByUri(string $uri): bool
+    {
+        $url_mode = config('larelog.url_filter_mode');
+        $list = config('larelog.url_list');
+        switch ($url_mode) {
             case Constants::MODE_BLACKLIST:
-                $list = config('larelog.blacklist');
-                $shouldLogByList = !$this->isUriInList($uri, $list);
+                $shouldLogByUrl = !$this->isStringInRegularPatternList($uri, $list);
                 break;
             case Constants::MODE_WHITELIST:
-                $list = config('larelog.whitelist');
-                $shouldLogByList = $this->isUriInList($uri, $list);
+                $shouldLogByUrl = $this->isStringInRegularPatternList($uri, $list);
                 break;
             default:
-                throw new Exception('Unknown mode: ' . $mode);
+                throw new Exception('Unknown mode: ' . $url_mode);
         }
-        return $this->shouldLogByDirection($direction)
-            && $this->shouldLogByType($type)
-            && $shouldLogByList;
+        return $shouldLogByUrl;
+    }
+
+    /**
+     * @param array|null $mimes
+     * @return bool
+     * @throws Exception
+     */
+    protected function shouldLogByMime(?array $mimes): bool
+    {
+        $mime_mode = config('larelog.mime_filter_mode');
+        $list = config('larelog.mime_list');
+        switch ($mime_mode) {
+            case Constants::MODE_BLACKLIST:
+                $shouldLogByMime = !$this->isInArrayCaseInsensitive($mimes, $list);
+                break;
+            case Constants::MODE_WHITELIST:
+                $shouldLogByMime = $this->isInArrayCaseInsensitive($mimes, $list);
+                break;
+            default:
+                throw new Exception('Unknown mode: ' . $mime_mode);
+        }
+        return $shouldLogByMime;
+    }
+
+    /**
+     * @param string|null $httpStatusCode
+     * @return bool
+     * @throws Exception
+     */
+    protected function shouldLogByHttpStatusCode(?string $httpStatusCode): bool
+    {
+        $filterMode = config('larelog.http_status_code_filter_mode');
+        $list = config('larelog.http_status_code_list');
+        switch ($filterMode) {
+            case Constants::MODE_BLACKLIST:
+                $shouldLogByMime = !in_array($httpStatusCode, $list);
+                break;
+            case Constants::MODE_WHITELIST:
+                $shouldLogByMime = in_array($httpStatusCode, $list);
+                break;
+            default:
+                throw new Exception('Unknown mode: ' . $filterMode);
+        }
+        return $shouldLogByMime;
     }
 
     /**
@@ -293,18 +376,18 @@ class Larelog
     }
 
     /**
-     * @param string $uri
+     * @param string $string
      * @param array $list
      * @return bool
      * @throws Exception
      */
-    protected function isUriInList(string $uri, array $list): bool
+    protected function isStringInRegularPatternList(string $string, array $list): bool
     {
         if (!empty($list)) {
             $subpattern = implode('|', $list);
             $pattern = '/(' . $subpattern . ')/';
             try {
-                $result = preg_match($pattern, $uri);
+                $result = preg_match($pattern, $string);
             } catch (Exception $e) {
                 throw new Exception('Regexp error: ' . $e->getMessage() . '. Expression: ' . $pattern);
             }
@@ -315,6 +398,22 @@ class Larelog
     }
 
     /**
+     * @param array $needle
+     * @param array $haystack
+     * @return bool
+     */
+    protected function isInArrayCaseInsensitive(array $needle, array $haystack): bool
+    {
+        $needle = array_map(function ($item) {
+            return mb_strtolower($item);
+        }, $needle);
+        $haystack = array_map(function ($item) {
+            return mb_strtolower($item);
+        }, $haystack);
+        return sizeof(array_intersect($needle, $haystack)) > 0;
+    }
+
+    /**
      * @param LarelogItem $logItem
      * @return void
      * @throws Exception
@@ -322,11 +421,6 @@ class Larelog
     protected function outputToCallback(LarelogItem $logItem): void
     {
         $callback = config('larelog.output_callback');
-        if (!empty($callback) && sizeof($callback) === 2 && method_exists($callback[0], $callback[1])) {
-            $callback($logItem);
-        } else {
-            $callbackAsText = !empty($callback) ? implode(', ', $callback) : json_encode($callback);
-            throw new Exception('Output callback ain\'t set or function doesn\'t exists. Trying to call: [' . $callbackAsText . ']');
-        }
+        $this->utils->callCallback($callback, $logItem);
     }
 }

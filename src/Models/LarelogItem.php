@@ -3,9 +3,11 @@
 namespace Azurath\Larelog\Models;
 
 use Azurath\Larelog\Larelog;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\View;
 
 /**
@@ -30,6 +32,7 @@ use Illuminate\Support\Facades\View;
  * @property-read ?string $formatted_request_headers
  * @property-read ?string $formatted_response_headers
  * @property-read string $formatted_execution_time
+ * @method Builder forceIndex(string $indexName)
  */
 class LarelogItem extends Model
 {
